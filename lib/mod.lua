@@ -12,8 +12,9 @@ local function add_txo_player()
 
     function player:note_on(note, vel)
         local v_vel = vel * 10
-        local v8 = (note - 60)/12        
-        crow.ii.txo.osc(1 v8)
+        local v8 = (note - 0)/12        
+        crow.ii.txo.cv(1,2)
+        crow.ii.txo.osc(1, v8)
         crow.ii.txo.tr_pulse(1)
     end
 
