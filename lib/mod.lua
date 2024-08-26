@@ -95,6 +95,41 @@ function player:stop_all()
     crow.ii.txo.cv(4,0)
 end
 
+function player:active()
+    self.is_active = true
+    self.active_routine = clock.run(function()
+        clock.sleep(1)
+        if self.is_active then
+            self:delayed_active()
+        end
+        self.active_routine = nil
+    end)
+end
+
+-- Optional. Callback for when a voice is slected for more than one second.
+-- This is where you want to change modes on external devices or whatever.
+function player:delayed_active()
+params:show("nb_txo")
+    for _, p in ipairs({
+        "nb_txo/osc_wave",
+        "nb_txo/env_act",
+        "nb_txo/env_att",
+        "nb_txo/env_dec"}) do
+            local prm = params:lookup_param(p)
+            prm:bang()
+    end
+    _menu.rebuild_params()
+end
+
+-- Optional. Callback for when a voice is no longer used. Useful for hiding
+-- parameters or whatnot.
+function player:inactive()
+    self.is_active = false
+    if self.active_routine ~= nil then
+        clock.cancel(self.active_routine)
+    end
+end
+
 -- local function add_txo_player()
 --    local player = {
 --        count = 0
