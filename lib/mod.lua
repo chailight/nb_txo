@@ -12,7 +12,7 @@ local time_ms = controlspec.def {
     warp = 'lin',
     step = 0.00,
     default = 10.0,
-    quantum = 1.0,
+    quantum = 0.01,
     wrap = false,
     units = 'ms'
 }
@@ -23,7 +23,7 @@ local wave_id = controlspec.def {
     warp = 'lin',
     step = 0.00,
     default = 0.0,
-    quantum = 1.0,
+    quantum = 0.01,
     wrap = false,
     units = ''
 }
