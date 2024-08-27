@@ -19,11 +19,11 @@ local time_ms = controlspec.def {
 
 local wave_id = controlspec.def {
     min = 0,
-    max = 400.0,
+    max = 32699.0,
     warp = 'lin',
     step = 0.00,
     default = 0.0,
-    quantum = 0.01,
+    quantum = 0.00003058,
     wrap = false,
     units = ''
 }
