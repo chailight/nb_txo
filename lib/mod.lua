@@ -41,7 +41,7 @@ function player:add_params()
 
     params:add_option("nb_txo/env", "env", { "off", "on" }, 1)
     params:set_action("nb_txo/env", function(param)
-        if param == "on" then
+        if param == 2 then  -- if env set to on
             crow.ii.txo.env_act(1,1)
         else
             crow.ii.txo.env_act(1,0)
