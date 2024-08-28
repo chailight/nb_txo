@@ -117,7 +117,7 @@ local function add_mono_player(idx)
     -- Optional. Callback for when a voice is slected for more than one second.
     -- This is where you want to change modes on external devices or whatever.
     function player:delayed_active()
-        params:show("nb_txoi_"..idx)
+        params:show("nb_txo_"..idx)
         for _, p in ipairs({
             "nb_txo_"..idx.."/osc_wave",
             "nb_txo_"..idx.."/env_act",
@@ -167,7 +167,7 @@ end
 
 
 mod.hook.register("script_pre_init", "nb txo pre init", function()
-    for n=1,6 do
+    for n=1,4 do
         add_mono_player(n)
     end
    -- note_players["txo"] = player 
