@@ -6,6 +6,7 @@ if note_players == nil then
     note_players = {}
 end
 
+
 local time_ms = controlspec.def {
     min = 0,
     max = 2000.0,
@@ -28,106 +29,117 @@ local wave_id = controlspec.def {
     units = ''
 }
 
-local player = {
-    allocator = Voice.new(4, Voice.LRU),
-    is_active = false,
-    notes = {},
-    modulation = 0,
-    channel_map = {0,0,0,0}
-}
+local function add_mono_player(idx)
+    -- local player = {
+    --    allocator = Voice.new(4, Voice.LRU),
+    --    is_active = false,
+    --    notes = {},
+    --    modulation = 0,
+    --    channel_map = {0,0,0,0}
+    --}
 
-function player:add_params()
-    params:add_group("nb_txo", "txo", 4)
-
-    params:add_option("nb_txo/env", "env", { "off", "on" }, 1)
-    params:set_action("nb_txo/env", function(param)
-        if param == 2 then  -- if env set to on
-            crow.ii.txo.env_act(1,1)
-        else
-            crow.ii.txo.env_act(1,0)
-        end
-    end)
-
-    params:add_control("nb_txo/attack", "attack", time_ms)
-    params:set_action("nb_txo/attack", function(param)
-        crow.ii.txo.env_att(1,param)
-    end)
-
-    params:add_control("nb_txo/decay", "decay", time_ms)
-    params:set_action("nb_txo/decay", function(param)
-        crow.ii.txo.env_dec(1,param)
-    end)
-
-    params:add_control("nb_txo/wave", "wave", wave_id)
-    params:set_action("nb_txo/wave", function(param)
-        crow.ii.txo.osc_wave(1,param)
-    end)
-
-    params:hide("nb_txo")
-end
-
-function player:note_on(note, vel)
-    local v_vel = vel * 5 
-    local v8 = (note - 0)/12        
-    crow.ii.txo.cv(1,v_vel)
-    crow.ii.txo.osc(1, v8)
-    crow.ii.txo.env_trig(1,1)
-    --crow.ii.txo.tr_pulse(1)
-end
-
-function player:note_off(note)
-    crow.ii.txo.cv(1,0)
-end
-
-function player:describe()
-    return {
-        name = "txo",
-        supports_bend = false,
-        supports_slew = false,
-        modulate_description = "unsupported",
+    local player = {
+        count = 0,
+        -- bend = 0,
+        note = nil
     }
-end
 
-function player:stop_all()
-    crow.ii.txo.cv(1,0)
-    crow.ii.txo.cv(2,0)
-    crow.ii.txo.cv(3,0)
-    crow.ii.txo.cv(4,0)
-end
+    function player:add_params()
+        params:add_group("nb_txo_"..idx, "txo "..idx, 4)
 
-function player:active()
-    self.is_active = true
-    self.active_routine = clock.run(function()
-        clock.sleep(1)
-        if self.is_active then
-            self:delayed_active()
+        params:add_option("nb_txo_"..idx.."/env", "env", { "off", "on" }, 1)
+        params:set_action("nb_txo_"..idx.."/env", function(param)
+            if param == 2 then  -- if env set to on
+                crow.ii.txo.env_act(idx,1)
+            else
+                crow.ii.txo.env_act(idx,0)
+            end
+        end)
+
+        params:add_control("nb_txo_"..idx.."/attack", "attack", time_ms)
+        params:set_action("nb_txo_"..idx.."/attack", function(param)
+            crow.ii.txo.env_att(idx,param)
+        end)
+
+        params:add_control("nb_txo_"..idx.."/decay", "decay", time_ms)
+        params:set_action("nb_txo_"..idx.."/decay", function(param)
+            crow.ii.txo.env_dec(idx,param)
+        end)
+
+        params:add_control("nb_txo_"..idx.."/wave", "wave", wave_id)
+        params:set_action("nb_txo_"..idx.."/wave", function(param)
+            crow.ii.txo.osc_wave(idx,param)
+        end)
+
+        params:hide("nb_txo_"..idx)
+    end
+
+    function player:note_on(note, vel)
+        local v_vel = vel * 5 
+        local v8 = (note - 0)/12        
+        crow.ii.txo.cv(idx,v_vel)
+        crow.ii.txo.osc(idx, v8)
+        crow.ii.txo.env_trig(idx,1)
+        --crow.ii.txo.tr_pulse(idx)
+    end
+
+    function player:note_off(note)
+        crow.ii.txo.cv(idx,0)
+    end
+
+    function player:describe()
+        return {
+            name = "txo "..idx,
+            supports_bend = false,
+            supports_slew = false,
+            modulate_description = "unsupported",
+        }
+    end
+
+    function player:stop_all()
+        crow.ii.txo.cv(1,0)
+        crow.ii.txo.cv(2,0)
+        crow.ii.txo.cv(3,0)
+        crow.ii.txo.cv(4,0)
+    end
+
+    function player:active()
+        self.is_active = true
+        self.active_routine = clock.run(function()
+            clock.sleep(1)
+            if self.is_active then
+                self:delayed_active()
+            end
+            self.active_routine = nil
+        end)
+    end
+
+    -- Optional. Callback for when a voice is slected for more than one second.
+    -- This is where you want to change modes on external devices or whatever.
+    function player:delayed_active()
+    params:show("nb_txo")
+        for _, p in ipairs({
+            "nb_txo_"..idx.."/osc_wave",
+            "nb_txo_"..idx.."/env_act",
+            "nb_txo_"..idx.."/env_att",
+            "nb_txo_"..idx.."/env_dec"}) do
+                local prm = params:lookup_param(p)
+                prm:bang()
         end
-        self.active_routine = nil
-    end)
-end
-
--- Optional. Callback for when a voice is slected for more than one second.
--- This is where you want to change modes on external devices or whatever.
-function player:delayed_active()
-params:show("nb_txo")
-    for _, p in ipairs({
-        "nb_txo/osc_wave",
-        "nb_txo/env_act",
-        "nb_txo/env_att",
-        "nb_txo/env_dec"}) do
-            local prm = params:lookup_param(p)
-            prm:bang()
+        _menu.rebuild_params()
     end
-    _menu.rebuild_params()
-end
 
--- Optional. Callback for when a voice is no longer used. Useful for hiding
--- parameters or whatnot.
-function player:inactive()
-    self.is_active = false
-    if self.active_routine ~= nil then
-        clock.cancel(self.active_routine)
+    -- Optional. Callback for when a voice is no longer used. Useful for hiding
+    -- parameters or whatnot.
+    function player:inactive()
+        self.is_active = false
+        if self.active_routine ~= nil then
+            clock.cancel(self.active_routine)
+        end
+        params:hide("nb_txo_"..idx)
+        _menu.rebuild_params()
     end
+    note_players["txo "..idx] = player
 end
 
 -- local function add_txo_player()
@@ -155,5 +167,9 @@ end
 
 
 mod.hook.register("script_pre_init", "nb txo pre init", function()
-   note_players["txo"] = player 
+    for n=1,6 do
+        add_mono_player(n)
+    end
+   -- note_players["txo"] = player 
 end)
+
