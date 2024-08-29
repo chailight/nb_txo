@@ -18,13 +18,24 @@ local time_ms = controlspec.def {
     units = 'ms'
 }
 
-local wave_id = controlspec.def {
+local wave_type = controlspec.def {
     min = 0,
-    max = 32699.0,
+    max = 327.0,
     warp = 'lin',
     step = 0.00,
     default = 0.0,
-    quantum = 0.00003058,
+    quantum = 0.0030581,
+    wrap = false,
+    units = ''
+}
+
+local wave_blend = controlspec.def {
+    min = -50,
+    max = 50.0,
+    warp = 'lin',
+    step = 0.00,
+    default = 0.0,
+    quantum = 0.01,
     wrap = false,
     units = ''
 }
@@ -66,9 +77,16 @@ local function add_mono_player(idx)
             crow.ii.txo.env_dec(idx,param)
         end)
 
-        params:add_control("nb_txo_"..idx.."/wave", "wave", wave_id)
+        params:add_control("nb_txo_"..idx.."/wave_type", "wave type", wave_type)
         params:set_action("nb_txo_"..idx.."/wave", function(param)
-            crow.ii.txo.osc_wave(idx,param)
+            local blend = params:get("nb_txo_"..idx.."/wave_blend)
+            crow.ii.txo.osc_wave(idx,param*100+blend)
+        end)
+
+        params:add_control("nb_txo_"..idx.."/wave_blend", "wave blend", wave_blend)
+        params:set_action("nb_txo_"..idx.."/wave", function(param)
+            local type = params:get("nb_txo_"..idx.."/wave_type)
+            crow.ii.txo.osc_wave(idx,type*100+param)
         end)
 
         params:hide("nb_txo_"..idx)
