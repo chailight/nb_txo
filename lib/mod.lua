@@ -56,7 +56,7 @@ local function add_mono_player(idx)
     }
 
     function player:add_params()
-        params:add_group("nb_txo_"..idx, "txo "..idx, 4)
+        params:add_group("nb_txo_"..idx, "txo "..idx, 5)
 
         params:add_option("nb_txo_"..idx.."/env", "env", { "off", "on" }, 1)
         params:set_action("nb_txo_"..idx.."/env", function(param)
