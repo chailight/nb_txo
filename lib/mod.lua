@@ -79,13 +79,13 @@ local function add_mono_player(idx)
 
         params:add_control("nb_txo_"..idx.."/wave_type", "wave type", wave_type)
         params:set_action("nb_txo_"..idx.."/wave", function(param)
-            local blend = params:get("nb_txo_"..idx.."/wave_blend)
+            local blend = params:get("nb_txo_"..idx.."/wave_blend")
             crow.ii.txo.osc_wave(idx,param*100+blend)
         end)
 
         params:add_control("nb_txo_"..idx.."/wave_blend", "wave blend", wave_blend)
         params:set_action("nb_txo_"..idx.."/wave", function(param)
-            local type = params:get("nb_txo_"..idx.."/wave_type)
+            local type = params:get("nb_txo_"..idx.."/wave_type")
             crow.ii.txo.osc_wave(idx,type*100+param)
         end)
 
