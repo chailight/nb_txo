@@ -399,7 +399,8 @@ local function add_poly_player()
     end
 
     function player:stop_all()
-        silence_ports(params:get(prefix .. "/voice_count"))
+        -- nb may call stop_all during init before add_params has run
+        silence_ports(self.voice_count or 4)
         self.notes = {}
         self.release_fn = {}
     end
@@ -411,7 +412,7 @@ local function add_poly_player()
     function player:delayed_active()
         params:show(prefix)
         bang_timbre_params(prefix)
-        apply_timbre_to_ports(prefix, params:get(prefix .. "/voice_count"))
+        apply_timbre_to_ports(prefix, self.voice_count or 4)
         _menu.rebuild_params()
     end
 
@@ -428,6 +429,7 @@ local function add_unison_player()
     local prefix = "nb_txo_unison"
     local player = {
         count = 0,
+        voice_count = 4,
         detune_modes = { "random", "spread" },
     }
 
@@ -453,6 +455,7 @@ local function add_unison_player()
 
         params:add_number(prefix .. "/voice_count", "voice count", 2, 4, 4)
         params:set_action(prefix .. "/voice_count", function(value)
+            self.voice_count = value
             if self.is_active then
                 apply_timbre_to_ports(prefix, value)
             end
@@ -483,7 +486,7 @@ local function add_unison_player()
         self.count = self.count - 1
         if self.count < 0 then self.count = 0 end
         if self.count == 0 then
-            silence_ports(params:get(prefix .. "/voice_count"))
+            silence_ports(self.voice_count or 4)
         end
     end
 
@@ -497,8 +500,9 @@ local function add_unison_player()
     end
 
     function player:stop_all()
+        -- nb may call stop_all during init before add_params has run
         self.count = 0
-        silence_ports(params:get(prefix .. "/voice_count"))
+        silence_ports(self.voice_count or 4)
     end
 
     function player:active()
@@ -508,7 +512,7 @@ local function add_unison_player()
     function player:delayed_active()
         params:show(prefix)
         bang_timbre_params(prefix)
-        apply_timbre_to_ports(prefix, params:get(prefix .. "/voice_count"))
+        apply_timbre_to_ports(prefix, self.voice_count or 4)
         _menu.rebuild_params()
     end
 
