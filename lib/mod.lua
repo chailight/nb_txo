@@ -67,6 +67,8 @@ local function apply_timbre_to_ports(prefix, n)
     local blend = params:get(prefix .. "/wave_blend")
     local wave = wtype * 100 + blend
     for i = 1, n do
+        crow.ii.txo.cv_slew(i, 0)
+        crow.ii.txo.osc_slew(i, 0)
         crow.ii.txo.env_act(i, env_on and 1 or 0)
         crow.ii.txo.env_att(i, att)
         crow.ii.txo.env_dec(i, dec)
@@ -77,7 +79,7 @@ end
 local function silence_ports(n)
     for i = 1, n do
         crow.ii.txo.env(i, 0)
-        crow.ii.txo.cv(i, 0)
+        crow.ii.txo.cv_set(i, 0)
     end
 end
 
@@ -145,15 +147,17 @@ local function cancel_active(player)
 end
 
 local function voice_on_trigger(port, v8, v_vel)
-    crow.ii.txo.osc(port, v8)
-    crow.ii.txo.cv(port, v_vel)
+    crow.ii.txo.osc_set(port, v8)
+    crow.ii.txo.cv_set(port, v_vel)
     crow.ii.txo.env_trig(port, 1)
 end
 
 local function voice_on_gate(port, v8, v_vel, env_on)
-    crow.ii.txo.osc(port, v8)
-    crow.ii.txo.cv(port, v_vel)
+    crow.ii.txo.osc_set(port, v8)
+    crow.ii.txo.cv_set(port, v_vel)
     if env_on then
+        -- force a rising edge so held/stolen ports retrigger cleanly
+        crow.ii.txo.env(port, 0)
         crow.ii.txo.env(port, 1)
     end
 end
@@ -162,7 +166,7 @@ local function voice_off_gate(port, env_on)
     if env_on then
         crow.ii.txo.env(port, 0)
     end
-    crow.ii.txo.cv(port, 0)
+    crow.ii.txo.cv_set(port, 0)
 end
 
 local function add_mono_player(idx)
@@ -265,6 +269,7 @@ local function add_poly_player()
         last_voice = 1,
         release_fn = {},
         notes = {},
+        port_owner = {},
         channel_map = {0, 0, 0, 0},
         allocator = Voice.new(4, Voice.LRU),
         alloc_modes = { "rotate", "random", "lru" },
@@ -280,6 +285,7 @@ local function add_poly_player()
         end
         player.notes = {}
         player.release_fn = {}
+        player.port_owner = {}
         if player.last_voice > n then
             player.last_voice = n
         end
@@ -299,6 +305,25 @@ local function add_poly_player()
 
     local function silence_port(port)
         voice_off_gate(port, env_on())
+    end
+
+    -- rotate/random: one note owns a port; steal clears the previous owner once
+    local function claim_port(note, port, trigger)
+        local prev = player.port_owner[port]
+        if prev ~= nil and prev ~= note then
+            player.release_fn[prev] = nil
+            if not trigger then
+                silence_port(port)
+            end
+        end
+        player.port_owner[port] = note
+    end
+
+    local function release_owned_port(note, port)
+        if player.port_owner[port] == note then
+            silence_port(port)
+            player.port_owner[port] = nil
+        end
     end
 
     function player:add_params()
@@ -330,31 +355,43 @@ local function add_poly_player()
         local port
 
         if mode == "lru" then
-            local slot = self.allocator:get()
+            local slot = self.notes[note]
+            local retrigger = slot ~= nil
+            if slot == nil then
+                slot = self.allocator:get()
+            end
             self.notes[note] = slot
             local index = self.channel_map[slot.id] + 1
             self.channel_map[slot.id] = index
             port = slot.id
             if not trigger then
+                if retrigger then
+                    silence_port(port)
+                end
                 slot.on_release = function(s)
                     if self.channel_map[s.id] == index then
                         silence_port(s.id)
                     end
                 end
             end
-        elseif mode == "rotate" then
-            port = self.last_voice % n + 1
-            self.last_voice = port
-            if not trigger then
-                self.release_fn[note] = function()
-                    silence_port(port)
-                end
+        else
+            -- drop this note's previous port ownership if it was already held
+            if self.release_fn[note] then
+                self.release_fn[note]()
+                self.release_fn[note] = nil
             end
-        else -- random
-            port = math.random(n)
+
+            if mode == "rotate" then
+                port = self.last_voice % n + 1
+                self.last_voice = port
+            else -- random
+                port = math.random(n)
+            end
+
+            claim_port(note, port, trigger)
             if not trigger then
                 self.release_fn[note] = function()
-                    silence_port(port)
+                    release_owned_port(note, port)
                 end
             end
         end
@@ -380,6 +417,7 @@ local function add_poly_player()
         end
 
         if is_trigger_mode() then
+            self.release_fn[note] = nil
             return
         end
 
@@ -403,6 +441,7 @@ local function add_poly_player()
         silence_ports(self.voice_count or 4)
         self.notes = {}
         self.release_fn = {}
+        self.port_owner = {}
     end
 
     function player:active()
